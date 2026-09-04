@@ -1,0 +1,14 @@
+{
+  "name": "bridgetech-logistics",
+  "version": "1.0.0",
+  "description": "BridgeTech Logistics — Uber-style truck hiring platform for South Africa (customer frontend + admin backend + Express API)",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install && npm --prefix admin install",
+    "dev:api": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "dev:admin": "npm --prefix admin run dev",
+    "build:client": "npm --prefix client run build",
+    "build:admin": "npm --prefix admin run build"
+  }
+}
