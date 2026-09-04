@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import Badge from '../components/Badge';
+import DriverProfileModal from '../components/DriverProfileModal';
 
 const EMPTY = { name: '', phone: '', email: '', licenseNumber: '', licenseType: 'Code 14', status: 'available', rating: 5, yearsExperience: 5, location: '' };
 const LICENSE = ['Code 8', 'Code 10', 'Code 14'];
@@ -12,6 +13,7 @@ export default function Drivers() {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
+  const [profileId, setProfileId] = useState(null);
 
   const notify = (m) => { setToast(m); setTimeout(() => setToast(''), 2500); };
   const load = () => api.get('/drivers').then((d) => setDrivers(d.drivers)).catch((e) => setError(e.message));
@@ -84,6 +86,7 @@ export default function Drivers() {
                     <td><Badge status={d.status} /></td>
                     <td>
                       <div className="flex" style={{ gap: 6 }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setProfileId(d.id)}>Profile</button>
                         <button className="btn btn-outline btn-sm" onClick={() => openEdit(d)}>Edit</button>
                         <button className="btn btn-danger btn-sm" onClick={() => remove(d)}>Remove</button>
                       </div>
@@ -128,6 +131,8 @@ export default function Drivers() {
           </div>
         </div>
       )}
+
+      {profileId && <DriverProfileModal driverId={profileId} onClose={() => setProfileId(null)} />}
     </>
   );
 }

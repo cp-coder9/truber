@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import LiveTrackMap from '../components/LiveTrackMap';
 import InvoiceModal from '../components/InvoiceModal';
+import DriverProfileModal from '../components/DriverProfileModal';
 
 const TIMELINE_ORDER = ['requested', 'confirmed', 'in_transit', 'delivered', 'completed', 'paid', 'cancelled'];
 
@@ -16,6 +17,7 @@ export default function TripDetail() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [showDriver, setShowDriver] = useState(false);
 
   const load = () => {
     api.get(`/bookings/${id}`).then((d) => setTrip(d.booking)).catch((e) => setError(e.message));
@@ -24,9 +26,13 @@ export default function TripDetail() {
   useEffect(() => { if (!user) navigate('/login'); }, [user, navigate]);
 
   const cancel = async () => {
+    const sure = window.confirm(
+      'Cancel this trip?\n\nA cancellation handling fee may apply. Fees are waived before dispatch and escalate closer to departure. This cannot be undone.'
+    );
+    if (!sure) return;
     setBusy(true);
     try {
-      await api.post(`/bookings/${id}/cancel`, {});
+      const d = await api.post(`/bookings/${id}/cancel`, {});
       load();
     } catch (e) {
       setError(e.message);
@@ -93,6 +99,7 @@ export default function TripDetail() {
               <span className="small muted">Distance: <b className="bold" style={{ color: 'var(--navy)' }}>{trip.distanceKm} km</b></span>
               <span className="small muted">Load: <b className="bold" style={{ color: 'var(--navy)' }}>{trip.weight} t</b></span>
               <span className="small muted">Vehicle: <b className="bold" style={{ color: 'var(--navy)' }}>{trip.truckType}</b></span>
+              <span className="small muted">Pick-up: <b className="bold" style={{ color: 'var(--navy)' }}>{trip.scheduled ? fmt.date(trip.scheduledAt) : 'Immediate'}</b></span>
             </div>
           </div>
 
@@ -128,7 +135,14 @@ export default function TripDetail() {
                 <div>
                   <div className="small muted">Driver</div>
                   {trip.driver ? (
-                    <div className="bold">{trip.driver.name} <span className="muted small">★ {trip.driver.rating}</span></div>
+                    <button className="btn btn-ghost btn-sm" style={{ padding: 0, color: 'var(--navy)' }} onClick={() => setShowDriver(true)}>
+                      <span className="driver-chip">
+                        <span className="avatar" style={{ width: 26, height: 26, fontSize: 13, background: 'var(--steel)', marginRight: 6 }}>{trip.driver.name.charAt(0)}</span>
+                        <span className="bold">{trip.driver.name}</span>
+                        <span className="muted small">★ {trip.driver.rating}</span>
+                        <span className="tiny" style={{ color: 'var(--orange-dark)' }}>View profile</span>
+                      </span>
+                    </button>
                   ) : (
                     <div className="muted">Awaiting assignment</div>
                   )}
@@ -188,16 +202,41 @@ export default function TripDetail() {
 
           {!['cancelled', 'completed', 'delivered'].includes(trip.status) && (
             <div className="card card-pad mt-2">
-              <h4 style={{ color: 'var(--navy)', margin: '0 0 12px' }}>Need to cancel?</h4>
-              <button className="btn btn-outline btn-block" disabled={busy} onClick={cancel} style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
+              <h4 style={{ color: 'var(--navy)', margin: '0 0 6px' }}>Need to cancel?</h4>
+              <p className="small muted" style={{ margin: '0 0 12px' }}>
+                A cancellation handling fee may apply. The fee is waived before dispatch and
+                escalates the closer you are to departure.
+              </p>
+              <button
+                className="btn btn-outline btn-block"
+                disabled={busy}
+                onClick={cancel}
+                style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
+              >
                 Cancel this trip
               </button>
+            </div>
+          )}
+
+          {trip.status === 'cancelled' && (
+            <div className="card card-pad mt-2">
+              <h4 style={{ color: 'var(--danger)', margin: '0 0 8px' }}>This trip was cancelled</h4>
+              {trip.cancellationFee > 0 && (
+                <>
+                  <div className="flex between"><span className="small muted">Cancellation fee</span><span className="bold" style={{ color: 'var(--danger)' }}>{fmt.rand(trip.cancellationFee)}</span></div>
+                  {trip.refundAmount > 0 && (
+                    <div className="flex between"><span className="small muted">Refunded</span><span className="bold" style={{ color: 'var(--success)' }}>{fmt.rand(trip.refundAmount)}</span></div>
+                  )}
+                  <div className="small muted mt-2">The remainder of your payment was refunded to your original method.</div>
+                </>
+              )}
             </div>
           )}
         </div>
       </div>
 
       {showInvoice && <InvoiceModal bookingId={trip.id} onClose={() => setShowInvoice(false)} />}
+      {showDriver && trip.driver && <DriverProfileModal driverId={trip.driver.id} onClose={() => setShowDriver(false)} />}
     </div>
   );
 }

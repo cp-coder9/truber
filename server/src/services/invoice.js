@@ -66,6 +66,22 @@ function buildInvoice(booking, payment, customer) {
     },
   ];
 
+  let total = booking.estimatedPrice;
+  let cancellationFee = 0;
+  let refundAmount = 0;
+
+  if (booking.status === 'cancelled') {
+    cancellationFee = booking.cancellationFee || 0;
+    items.push({
+      label: 'Cancellation handling fee',
+      detail: 'Applied on cancellation',
+      amount: cancellationFee,
+    });
+    // Total that was charged/owed now reflects the fee.
+    total = cancellationFee;
+    refundAmount = booking.refundAmount || Math.max(0, booking.estimatedPrice - cancellationFee);
+  }
+
   return {
     kind: paid ? 'receipt' : 'invoice',
     invoiceNumber,
@@ -77,10 +93,14 @@ function buildInvoice(booking, payment, customer) {
     paidAt,
     paymentMethod: payment ? payment.method : booking.paymentMethod || null,
     paymentReference: payment ? payment.reference : null,
-    total: booking.estimatedPrice,
-    subtotal: quote.subTotal,
-    vat: quote.tax,
+    total,
+    subtotal: booking.status === 'cancelled' ? 0 : quote.subTotal,
+    vat: booking.status === 'cancelled' ? 0 : quote.tax,
+    cancellationFee,
+    refundAmount,
     status: booking.status,
+    paidAtBooking: !!payment,
+    scheduledAt: booking.scheduledAt,
     company: COMPANY,
     billTo: {
       name: booking.customerName,

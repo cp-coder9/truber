@@ -37,9 +37,14 @@ export default function Navbar() {
             Book a Truck
           </NavLink>
           {user ? (
-            <NavLink to="/trips" className={({ isActive }) => 'nav-link' + (isActive ? ' active' : '')}>
-              My Trips
-            </NavLink>
+            <>
+              <NavLink to="/trips" className={({ isActive }) => 'nav-link' + (isActive ? ' active' : '')}>
+                My Trips
+              </NavLink>
+              <NavLink to="/profile" className={({ isActive }) => 'nav-link' + (isActive ? ' active' : '')}>
+                Profile
+              </NavLink>
+            </>
           ) : null}
         </nav>
 

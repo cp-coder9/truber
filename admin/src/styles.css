@@ -171,6 +171,23 @@ tr:last-child td { border-bottom: none; }
 .text-right { text-align: right; }
 .text-center { text-align: center; }
 
+/* Driver profile */
+.modal { position: relative; }
+.driver-hero { display: flex; align-items: center; gap: 16px; }
+.driver-avatar-lg { width: 64px; height: 64px; border-radius: 16px; display: grid; place-items: center; color: #fff; font-size: 28px; font-weight: 900; flex-shrink: 0; }
+.driver-rating-chip { display: inline-flex; align-items: center; gap: 4px; background: #fff7ed; padding: 4px 10px; border-radius: 999px; font-weight: 800; color: #92400e; }
+.driver-truck-box { display: flex; align-items: center; gap: 12px; background: #f6f9fc; border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+.driver-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+.driver-stat-num { font-size: 26px; font-weight: 900; color: var(--navy); }
+.rating-bars { display: grid; gap: 8px; }
+.rating-row { display: flex; align-items: center; gap: 12px; }
+.rating-star-label { width: 44px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.rating-track { flex: 1; height: 8px; background: #eef2f7; border-radius: 999px; overflow: hidden; }
+.rating-fill { height: 100%; background: linear-gradient(90deg, #ff9c1a, #e8890a); border-radius: 999px; }
+.rating-count { width: 40px; text-align: right; font-size: 13px; font-weight: 700; color: var(--muted); }
+.review-list { display: grid; gap: 12px; }
+.review-card { background: #f6f9fc; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+
 /* Live map */
 .map-wrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #f6f9fc; }
 .map-svg { display: block; width: 100%; height: auto; }

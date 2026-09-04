@@ -22,38 +22,54 @@ This repository is a full-stack, three-app monorepo:
 
 ## ✨ Features
 
-### Customer app (`client`)
-- Branded landing page ("BridgeTech Logistics") with fleet showcase & how-it-works
+### Customer app (`client`) — mobile-first, Uber-style
+- Premium, **mobile-responsive** UI with an app-like **bottom navigation bar** on
+  phones and a refined desktop layout
 - **Book a truck** flow: pick a vehicle type, type-to-search SA cities (autocomplete),
   enter load weight & cargo, get an **instant quote** (distance + VAT breakdown)
-- **My Trips**: list all bookings with status badges, live trip timeline, assigned
-  truck & driver, and one-click **demo payment** (card / EFT)
-- **Live tracking map**: an offline SVG map of South Africa with your pickup/drop-off
-  pins and an animated truck marker that moves along the route while in transit
+- **Full scheduling**: choose **"Now"** for an immediate trip or **"Schedule"** to pick a
+  future date & time
+- **Pay-on-book**: payment is taken **immediately** when you confirm the booking
+  (card / EFT / voucher) — the trip is confirmed & paid with no delay
+- **My Trips**: status badges, live trip timeline, assigned truck & driver, and a
+  **live tracking map** (offline SVG of South Africa with an animated truck marker)
+- **Driver profiles & ratings**: tap the driver to open a full profile with rating
+  stars, rating breakdown, verified reviews, license & completed trips
+- **Cancellation handling fee**: cancelling applies a tiered fee (free before
+  dispatch → 20% → 50% near departure → 100% in transit), shown as a refund breakdown
 - **Invoices & receipts**: view, print or save-as-PDF a signed **tax invoice** (unpaid)
   or **receipt** (paid) with itemised distance, load and VAT line items
+- **Your Profile**: account page with booking stats, spend, cancellation fees and
+  vehicle-type usage
 - Register / Login with JWT auth
 
 ### Admin console (`admin`)
 - **Dashboard**: revenue (6-month chart), fleet availability donut, booking status
   breakdown, recent bookings
-- **Bookings**: searchable/filterable list + detail view with
-  **dispatch** (assign truck & driver), **status advancement** (confirm →
-  in transit → delivered → complete), a **live tracking map**, and
-  **invoice / receipt generation**
+- **Bookings**: searchable/filterable list + detail view with **dispatch**
+  (assign truck & driver), **status advancement** (confirm → in transit → delivered →
+  complete), **admin cancellation** with fee, a **live tracking map**, schedule info,
+  and **invoice / receipt generation**
 - **Fleet**: add / edit / delete trucks, capacity, rate cards, status
-- **Drivers**: add / edit / remove drivers, licenses, ratings, status
+- **Drivers**: add / edit / remove drivers + a full **profile / ratings / reviews**
+  view; licenses, ratings, status
 - **Customers**: list customers with spend + drill into their bookings
 
 ### API (`server`)
 - `POST /api/auth/login`, `POST /api/auth/register`, `GET /api/auth/me`
 - `GET /api/places?q=` — offline SA geocoder
 - `POST /api/quotes`, `GET /api/quotes/rates`
+- `POST /api/bookings` — creates a booking (accepts `scheduledAt` and optional
+  `paymentMethod`, which settles **immediately on booking**)
 - `GET/POST /api/bookings`, `GET /api/bookings/:id`, `PATCH .../assign`,
-  `PATCH .../status`, `POST .../cancel`, `POST .../pay`
+  `PATCH .../status`, `POST .../cancel` (applies a **cancellation handling fee**),
+  `POST .../pay`
 - `GET /api/bookings/:id/invoice` — generated tax invoice / receipt
-- `GET/POST/PUT/DELETE /api/trucks`, `/api/drivers` (admin)
-- `GET /api/customers`, `GET /api/stats` (admin)
+  (incl. cancellation-fee line & refund when cancelled)
+- `GET /api/drivers/:id/profile` — rich driver profile (rating breakdown, reviews,
+  completed trips); `GET/POST/PUT/DELETE /api/trucks`, `/api/drivers` (admin)
+- `GET /api/customers`, `GET /api/customers/me` (self-profile w/ spend & fees),
+  `GET /api/stats` (admin)
 
 ---
 

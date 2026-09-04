@@ -263,12 +263,133 @@ input, select, textarea { font-family: inherit; font-size: 15px; }
 .invoice-totals > div:last-child { border-top: 2px solid var(--navy); margin-top: 4px; padding-top: 8px; font-size: 16px; }
 .invoice-foot { margin-top: 22px; padding-top: 14px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 12.5px; text-align: center; }
 
+/* ========================================================================
+   Bottom sheet (mobile-first modals)
+   ======================================================================== */
+.bottom-sheet {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(11, 37, 69, 0.4);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.bottom-sheet-card {
+  background: #fff; width: 100%; max-width: 560px;
+  border-radius: 24px 24px 0 0; padding: 10px 24px 28px;
+  max-height: 88vh; overflow-y: auto;
+  box-shadow: 0 -12px 40px rgba(11, 37, 69, 0.25);
+  animation: sheetUp 0.28s ease;
+}
+@keyframes sheetUp { from { transform: translateY(40px); opacity: 0.5; } to { transform: translateY(0); opacity: 1; } }
+.sheet-handle { width: 44px; height: 5px; border-radius: 999px; background: #d6dee9; margin: 4px auto 12px; }
+.sheet-close { position: absolute; top: 14px; right: 16px; background: #eef2f7; border: none; width: 34px; height: 34px; border-radius: 50%; font-weight: 800; color: var(--navy); }
+.sheet-actions { margin-top: 18px; }
+
+@media (min-width: 641px) {
+  .bottom-sheet { align-items: center; padding: 20px; }
+  .bottom-sheet-card { border-radius: 24px; max-width: 560px; }
+}
+
+/* Driver profile */
+.driver-chip { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; background: #f6f9fc; border: 1px solid var(--line); border-radius: 999px; }
+.driver-chip .avatar { margin-right: 4px; }
+.driver-hero { display: flex; align-items: center; gap: 16px; }
+.driver-avatar-lg { width: 68px; height: 68px; border-radius: 18px; display: grid; place-items: center; color: #fff; font-size: 30px; font-weight: 900; flex-shrink: 0; }
+.driver-rating-chip { display: inline-flex; align-items: center; gap: 4px; background: #fff7ed; padding: 4px 10px; border-radius: 999px; font-weight: 800; color: #92400e; }
+.driver-truck-box { display: flex; align-items: center; gap: 12px; background: #f6f9fc; border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin-top: 16px; }
+.truck-emoji-sm { font-size: 26px; }
+.driver-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+.driver-stat-num { font-size: 26px; font-weight: 900; color: var(--navy); letter-spacing: -0.5px; }
+.rating-bars { display: grid; gap: 8px; }
+.rating-row { display: flex; align-items: center; gap: 12px; }
+.rating-star-label { width: 44px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.rating-track { flex: 1; height: 8px; background: #eef2f7; border-radius: 999px; overflow: hidden; }
+.rating-fill { height: 100%; background: linear-gradient(90deg, #ff9c1a, #e8890a); border-radius: 999px; }
+.rating-count { width: 40px; text-align: right; font-size: 13px; font-weight: 700; color: var(--muted); }
+.review-list { display: grid; gap: 12px; }
+.review-card { background: #f6f9fc; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+
+/* ========================================================================
+   Scheduling + payment steps (mobile "app" flow)
+   ======================================================================== */
+.mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #eef2f7; padding: 6px; border-radius: 14px; }
+.mode-tab { border: none; background: transparent; padding: 12px; border-radius: 10px; font-weight: 700; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; }
+.mode-tab.active { background: #fff; color: var(--navy); box-shadow: 0 2px 8px rgba(11,37,69,0.1); }
+.mode-tab .mode-icon { font-size: 20px; }
+.pay-panel { border: 2px solid var(--line); border-radius: 14px; padding: 16px; }
+.pay-panel.method-selected { border-color: var(--steel); background: #f7fdfc; }
+.pay-methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pay-method { border: 2px solid var(--line); border-radius: 14px; padding: 14px 8px; text-align: center; background: #fff; transition: all 0.15s; }
+.pay-method.selected { border-color: var(--orange); background: #fff7ed; }
+.pay-method .pm-emoji { font-size: 26px; display: block; }
+.pay-method .pm-label { font-size: 12px; font-weight: 700; margin-top: 4px; color: var(--navy); }
+
+/* Confirmation success */
+.booking-success { text-align: center; padding: 20px 8px; }
+.success-check { width: 84px; height: 84px; border-radius: 50%; background: #d1fae5; color: #065f46; display: grid; place-items: center; font-size: 40px; margin: 0 auto 14px; }
+
+/* ========================================================================
+   Mobile bottom navigation (app-like)
+   ======================================================================== */
+.mobile-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 120;
+  background: #fff; border-top: 1px solid var(--line);
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0));
+  box-shadow: 0 -6px 24px rgba(11, 37, 69, 0.1);
+}
+.mobile-nav-inner { display: flex; justify-content: space-around; max-width: 520px; margin: 0 auto; }
+.mobile-nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 14px; border-radius: 12px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.mobile-nav-item.active { color: var(--navy); }
+.mobile-nav-item.active .mn-ico { background: var(--orange); }
+.mn-ico { width: 34px; height: 34px; border-radius: 10px; background: #f0f3f8; color: var(--navy); display: grid; place-items: center; transition: all 0.15s; }
+.mobile-nav-item.active .mn-ico { background: var(--orange); color: #201200; }
+
+/* Bottom padding so content isn't hidden behind the mobile nav */
+@media (max-width: 900px) {
+  .mobile-nav { display: block; }
+  body { padding-bottom: 72px; }
+  .nav-links { display: none !important; }
+  .nav-user .nav-link, .nav-cta { display: none; }
+  .nav-user { margin-left: 0; padding-left: 0; border-left: none; }
+}
+
+/* ========================================================================
+   Premium mobile hero / booking (app-like)
+   ======================================================================== */
+@media (max-width: 900px) {
+  .hero { padding: 28px 0 8px; }
+  .hero-grid { grid-template-columns: 1fr; gap: 20px; }
+  .hero h1 { font-size: 30px; letter-spacing: -0.8px; }
+  .hero p { font-size: 16px; }
+  .hero-badges { margin-top: 20px; gap: 12px; }
+  .hero-badge { font-size: 12px; }
+  .trip-card { padding: 20px; border-radius: 20px; box-shadow: 0 -2px 30px rgba(11,37,69,0.15); margin-bottom: 12px; }
+  .section { padding: 40px 0; }
+  .section-title { font-size: 26px; }
+  .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; gap: 14px; }
+  .steps { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .truck-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .truck-card { padding: 16px; }
+  .truck-card .truck-emoji { font-size: 32px; }
+  .list-item { padding: 14px 16px; }
+  .auth-wrap { margin: 16px auto; padding: 0 14px; }
+  .page { padding: 20px 0 96px; }
+  .footer { padding: 36px 0 88px; }
+  .footer-grid { gap: 20px; }
+  .btn { padding: 12px 18px; }
+  .btn-lg { padding: 15px 22px; }
+}
+
+/* Mobile payment/schedule column stacking in booking detail */
+@media (max-width: 900px) {
+  .grid-2[style*="1.4fr"] { grid-template-columns: 1fr !important; }
+}
+
 /* Print: only show the invoice document when printing */
 @media print {
   body * { visibility: hidden; }
   #invoice-print, #invoice-print * { visibility: visible; }
   #invoice-print { position: absolute; inset: 0; width: 100%; border: none; border-radius: 0; box-shadow: none; }
-  .modal-backdrop { position: static; padding: 0; }
+  .modal-backdrop, .bottom-sheet { position: static; padding: 0; }
 }
 
 /* Responsive */

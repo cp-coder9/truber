@@ -4,6 +4,7 @@ const { requireAuth, requireAdmin } = require('../auth');
 const { distanceBetweenLatLng, roadDistance } = require('../services/distance');
 const { priceForTrip, TYPE_RATES } = require('../services/pricing');
 const { buildInvoice } = require('../services/invoice');
+const { computeCancellationFee } = require('../services/cancellation');
 const { TRUCK_TYPES, PAYMENT_METHODS } = require('../constants');
 
 const router = express.Router();
@@ -45,7 +46,23 @@ function withRefs(booking) {
   return b;
 }
 
-// POST /api/bookings  (customer)
+function recordPayment(booking, method) {
+  const payment = {
+    id: uuidv4(),
+    bookingId: booking.id,
+    reference: `PAY-${uuidv4().slice(0, 6).toUpperCase()}`,
+    amount: booking.estimatedPrice,
+    method,
+    status: 'paid',
+    kind: 'booking',
+    createdAt: new Date().toISOString(),
+  };
+  db.payments.push(payment);
+  return payment;
+}
+
+// POST /api/bookings  (customer) — creates a booking and records payment
+// immediately (pay-on-book), so the trip is confirmed & paid from the outset.
 router.post('/', requireAuth, (req, res) => {
   if (req.user.role !== 'customer') {
     return res.status(403).json({ error: 'Only customers can create bookings' });
@@ -66,12 +83,23 @@ router.post('/', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Valid coordinates are required' });
   }
 
+  // Validate scheduling time
+  let scheduleAt = scheduledAt ? new Date(scheduledAt) : new Date();
+  if (Number.isNaN(scheduleAt.getTime())) {
+    return res.status(400).json({ error: 'Invalid scheduled time' });
+  }
+  if (scheduleAt.getTime() < Date.now() - 5 * 60 * 1000) {
+    return res.status(400).json({ error: 'Scheduled time must be in the future' });
+  }
+
   const tonnes = Number(weight) || 0;
   const straight = distanceBetweenLatLng(pickupLat, pickupLng, dropoffLat, dropoffLng);
   const distance = distanceKm ? Number(distanceKm) : roadDistance(straight);
   const { price } = priceForTrip({ truckType, distanceKm: distance, weight: tonnes });
 
   const customer = db.customers.find((c) => c.id === req.user.sub);
+  const method = paymentMethod && PAYMENT_METHODS.includes(paymentMethod) ? paymentMethod : null;
+
   const booking = {
     id: uuidv4(),
     reference: makeReference(),
@@ -93,13 +121,28 @@ router.post('/', requireAuth, (req, res) => {
     estimatedPrice: price,
     status: 'pending',
     paymentStatus: 'unpaid',
-    paymentMethod: paymentMethod && PAYMENT_METHODS.includes(paymentMethod) ? paymentMethod : null,
+    paymentMethod: method,
+    cancellationFee: 0,
     createdAt: new Date().toISOString(),
-    scheduledAt: scheduledAt || new Date().toISOString(),
+    scheduledAt: scheduleAt.toISOString(),
+    scheduled: scheduleAt.getTime() > Date.now() + 30 * 60 * 1000,
     timeline: [],
   };
   pushTimeline(booking, 'requested', 'Booking requested');
 
+  // Pay immediately on booking — trips are paid up front, no delay.
+  if (method) {
+    const payment = recordPayment(booking, method);
+    booking.paymentStatus = 'paid';
+    booking.status = 'confirmed';
+    pushTimeline(booking, 'paid', `Payment of ${currency(price)} received at booking (${method.toUpperCase()})`);
+    pushTimeline(booking, 'confirmed', 'Booking confirmed — payment settled');
+    db.bookings.push(booking);
+    save();
+    return res.status(201).json({ booking: withRefs(booking), payment });
+  }
+
+  // Fallback for non-payment flows (e.g. manual API/quote-only).
   db.bookings.push(booking);
   save();
   res.status(201).json({ booking: withRefs(booking) });
@@ -156,6 +199,9 @@ router.patch('/:id/assign', requireAuth, requireAdmin, (req, res) => {
     if (driver.status !== 'on_trip') driver.status = 'on_trip';
     driver.truckId = truckId || driver.truckId || null;
   }
+  if (driverId && truckId) {
+    pushTimeline(booking, 'assigned', `Assigned ${summarizeTruck(db.trucks.find(t=>t.id===truckId))?.plate} / ${summarizeDriver(db.drivers.find(d=>d.id===driverId))?.name}`);
+  }
   save();
   res.json({ booking: withRefs(booking) });
 });
@@ -172,7 +218,6 @@ router.patch('/:id/status', requireAuth, requireAdmin, (req, res) => {
   booking.status = status;
   pushTimeline(booking, status, note || `Status changed to ${status}`);
 
-  // keep truck/driver availability in sync
   if (status === 'confirmed' || status === 'in_transit') {
     if (booking.truckId) {
       const truck = db.trucks.find((t) => t.id === booking.truckId);
@@ -198,7 +243,7 @@ router.patch('/:id/status', requireAuth, requireAdmin, (req, res) => {
   res.json({ booking: withRefs(booking) });
 });
 
-// POST /api/bookings/:id/cancel  (customer or admin)
+// POST /api/bookings/:id/cancel  (customer or admin) — applies a handling fee
 router.post('/:id/cancel', requireAuth, (req, res) => {
   const { booking, forbidden } = findSecureBooking(req.params.id, req);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
@@ -209,9 +254,35 @@ router.post('/:id/cancel', requireAuth, (req, res) => {
   if (booking.status === 'cancelled') {
     return res.status(400).json({ error: 'Booking is already cancelled' });
   }
+
+  const { amount, label } = computeCancellationFee({
+    price: booking.estimatedPrice,
+    status: booking.status,
+    scheduledAt: booking.scheduledAt,
+    hasTruck: !!booking.truckId,
+    hasDriver: !!booking.driverId,
+  });
+
+  booking.cancellationFee = amount;
   booking.status = 'cancelled';
   pushTimeline(booking, 'cancelled', req.body?.note || 'Cancelled by customer');
-  // release any assigned resources
+
+  if (amount > 0) {
+    pushTimeline(booking, 'cancellation_fee', `Cancellation handling fee of ${currency(amount)} applied (${label})`);
+  }
+
+  // If the trip was already paid, compute the refund after the fee.
+  if (booking.paymentStatus === 'paid') {
+    const refund = Math.max(0, booking.estimatedPrice - amount);
+    booking.refundAmount = refund;
+    pushTimeline(
+      booking,
+      'refund',
+      refund > 0 ? `Refund of ${currency(refund)} processed after ${currency(amount)} cancellation fee` : 'No refund — cancellation fee equals amount paid'
+    );
+  }
+
+  // release assigned resources
   if (booking.truckId) {
     const truck = db.trucks.find((t) => t.id === booking.truckId);
     if (truck) truck.status = 'available';
@@ -220,11 +291,12 @@ router.post('/:id/cancel', requireAuth, (req, res) => {
     const driver = db.drivers.find((d) => d.id === booking.driverId);
     if (driver) driver.status = 'available';
   }
+
   save();
-  res.json({ booking: withRefs(booking) });
+  res.json({ booking: withRefs(booking), cancellationFee: amount, refundAmount: booking.refundAmount || 0, feeLabel: label });
 });
 
-// POST /api/bookings/:id/pay  (customer or admin) - mock payment
+// POST /api/bookings/:id/pay  (customer or admin) - mark paid (fallback)
 router.post('/:id/pay', requireAuth, (req, res) => {
   const { booking, forbidden } = findSecureBooking(req.params.id, req);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
@@ -233,21 +305,16 @@ router.post('/:id/pay', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Booking is already paid' });
   }
   const method = req.body?.method || booking.paymentMethod || 'card';
+  const payment = recordPayment(booking, method);
   booking.paymentStatus = 'paid';
   booking.paymentMethod = method;
-  const payment = {
-    id: uuidv4(),
-    bookingId: booking.id,
-    reference: `PAY-${uuidv4().slice(0, 6).toUpperCase()}`,
-    amount: booking.estimatedPrice,
-    method,
-    status: 'paid',
-    createdAt: new Date().toISOString(),
-  };
-  db.payments.push(payment);
-  pushTimeline(booking, 'paid', `Payment of R${booking.estimatedPrice.toLocaleString('en-ZA')} received (${method.toUpperCase()})`);
+  pushTimeline(booking, 'paid', `Payment of ${currency(booking.estimatedPrice)} received (${method.toUpperCase()})`);
   save();
   res.json({ booking: withRefs(booking), payment });
 });
+
+function currency(n) {
+  return 'R' + Number(n).toLocaleString('en-ZA', { maximumFractionDigits: 0 });
+}
 
 module.exports = router;

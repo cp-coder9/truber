@@ -122,9 +122,25 @@ function makeBooking({
     status,
     paymentStatus,
     paymentMethod: paymentMethod || null,
+    cancellationFee: status === 'cancelled' ? 0 : 0,
+    refundAmount: 0,
+    scheduled: scheduledAt ? new Date(scheduledAt).getTime() > Date.now() : false,
     createdAt,
     scheduledAt: scheduledAt || createdAt,
     timeline,
+  };
+}
+
+function makePayment(booking, method) {
+  return {
+    id: uuidv4(),
+    bookingId: booking.id,
+    reference: `PAY-${uuidv4().slice(0, 6).toUpperCase()}`,
+    amount: booking.estimatedPrice,
+    method: method || booking.paymentMethod || 'card',
+    status: 'paid',
+    kind: 'booking',
+    createdAt: booking.createdAt,
   };
 }
 
@@ -230,9 +246,41 @@ function seedSampleBookings() {
       createdAt: new Date(now - day * 9).toISOString(),
       scheduledAt: new Date(now - day * 8).toISOString(),
     }),
+    makeBooking({
+      customer: customers.sarah,
+      truckType: 'Box Truck',
+      fromCity: 'Johannesburg',
+      toCity: 'Pretoria',
+      cargo: 'Furniture & household goods',
+      weight: 6,
+      status: 'cancelled',
+      assignedTruck: null,
+      assignedDriver: null,
+      paymentStatus: 'paid',
+      paymentMethod: 'card',
+      createdAt: new Date(now - day * 2).toISOString(),
+      scheduledAt: new Date(now - day * 0.5).toISOString(),
+    }),
   ];
 
   db.bookings.push(...samples);
+
+  // Attach a payment record to every paid booking so receipts show a reference,
+  // and apply a cancellation fee to the cancelled (paid) sample.
+  for (const b of db.bookings) {
+    if (b.paymentStatus === 'paid') {
+      db.payments.push(makePayment(b, b.paymentMethod));
+    }
+    if (b.status === 'cancelled' && b.paymentStatus === 'paid') {
+      b.cancellationFee = Math.round(b.estimatedPrice * 0.2);
+      b.refundAmount = Math.max(0, b.estimatedPrice - b.cancellationFee);
+      b.timeline.push({
+        status: 'cancellation_fee',
+        at: b.scheduledAt,
+        note: `Cancellation handling fee of R${b.cancellationFee.toLocaleString('en-ZA')} applied (20% of trip)`,
+      });
+    }
+  }
 }
 
 function runSeeds() {

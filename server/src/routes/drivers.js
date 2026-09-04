@@ -2,20 +2,29 @@ const express = require('express');
 const { db, save, uuidv4 } = require('../db');
 const { requireAuth, requireAdmin } = require('../auth');
 const { LICENSE_TYPES, DRIVER_STATUSES } = require('../constants');
+const { driverProfile } = require('../services/driverProfile');
 
 const router = express.Router();
 
 // GET /api/drivers  (auth)
 router.get('/', requireAuth, (req, res) => {
-  res.json({ drivers: db.drivers });
+  res.json({ drivers: db.drivers.map((d) => driverProfile(d, db)) });
 });
 
 // GET /api/drivers/available (auth)
 router.get('/available', requireAuth, (req, res) => {
-  res.json({ drivers: db.drivers.filter((d) => d.status === 'available') });
+  res.json({ drivers: db.drivers.filter((d) => d.status === 'available').map((d) => driverProfile(d, db)) });
 });
 
-// GET /api/drivers/:id  (auth)
+// GET /api/drivers/:id/profile  (auth) - rich customer-facing profile
+router.get('/:id/profile', requireAuth, (req, res) => {
+  const driver = db.drivers.find((d) => d.id === req.params.id);
+  if (!driver) return res.status(404).json({ error: 'Driver not found' });
+  const truck = driver.truckId ? db.trucks.find((t) => t.id === driver.truckId) : null;
+  res.json({ profile: { ...driverProfile(driver, db), truck: truck ? { plate: truck.plate, make: truck.make, model: truck.model, type: truck.type } : null } });
+});
+
+// GET /api/drivers/:id  (auth) - listing summary
 router.get('/:id', requireAuth, (req, res) => {
   const driver = db.drivers.find((d) => d.id === req.params.id);
   if (!driver) return res.status(404).json({ error: 'Driver not found' });

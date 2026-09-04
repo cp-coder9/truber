@@ -57,6 +57,20 @@ export default function BookingDetail() {
     }
   };
 
+  const cancel = async () => {
+    if (!window.confirm('Cancel this booking? A cancellation handling fee will be charged per policy.')) return;
+    setBusy(true);
+    try {
+      const d = await api.post(`/bookings/${id}/cancel`, {});
+      notify(`Cancelled — fee R${d.cancellationFee}`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (error && !booking) return <div className="card card-pad"><div className="form-error">{error}</div></div>;
   if (!booking) return <div className="loading"><span className="spinner" /> Loading booking…</div>;
 
@@ -164,10 +178,13 @@ export default function BookingDetail() {
                   <button className="btn btn-dark" disabled={busy || booking.status === 'in_transit'} onClick={() => setStatus('in_transit')}>Mark in transit</button>
                   <button className="btn btn-dark" disabled={busy || booking.status === 'delivered'} onClick={() => setStatus('delivered')}>Mark delivered</button>
                   <button className="btn btn-primary" disabled={busy || booking.status === 'completed'} onClick={() => setStatus('completed')}>Complete job</button>
+                  {!['completed', 'delivered', 'cancelled'].includes(booking.status) && (
+                    <button className="btn btn-danger" disabled={busy} onClick={cancel}>Cancel booking</button>
+                  )}
                 </>
               )}
             </div>
-            <p className="small muted mt-2">Available flow: Confirm → In transit → Delivered → Completed. Completing finalises the booking and settles payment.</p>
+            <p className="small muted mt-2">Flow: Confirm → In transit → Delivered → Completed. Completing finalises the booking and settles payment. Cancellations incur a handling fee.</p>
           </div>
 
           {/* Timeline */}
@@ -211,6 +228,16 @@ export default function BookingDetail() {
               <span className="small muted">Method</span>
               <span className="bold">{booking.paymentMethod ? booking.paymentMethod.toUpperCase() : '—'}</span>
             </div>
+            <div className="flex between">
+              <span className="small muted">Scheduled</span>
+              <span className="bold">{booking.scheduled ? 'Yes' : 'Immediate'}</span>
+            </div>
+            {booking.status === 'cancelled' && (
+              <>
+                <div className="flex between"><span className="small muted">Cancellation fee</span><span className="bold" style={{ color: 'var(--danger)' }}>{fmt.rand(booking.cancellationFee || 0)}</span></div>
+                {booking.refundAmount > 0 && <div className="flex between"><span className="small muted">Refunded</span><span className="bold" style={{ color: 'var(--success)' }}>{fmt.rand(booking.refundAmount)}</span></div>}
+              </>
+            )}
           </div>
 
           <div className="card card-pad mt-2">
